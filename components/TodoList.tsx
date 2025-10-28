@@ -1,13 +1,14 @@
 "use client";
 
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import { TodoItem } from "./TodoItem";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
+import { supabase, Todo as SupabaseTodo } from "@/lib/supabase";
 
 type Todo = {
-  id: number;
+  id: string;
   text: string;
   completed: boolean;
 };
@@ -19,6 +20,36 @@ export function TodoList() {
   const [inputValue, setInputValue] = useState("");
   const [error, setError] = useState("");
   const [filter, setFilter] = useState<Filter>("all");
+  const [isLoading, setIsLoading] = useState(true);
+
+  // Загрузка todos из Supabase при монтировании
+  useEffect(() => {
+    const fetchTodos = async () => {
+      setIsLoading(true);
+      const { data, error: fetchError } = await supabase
+        .from("todos")
+        .select("*")
+        .order("created_at", { ascending: false });
+
+      if (fetchError) {
+        setError("Failed to load todos. Please try again.");
+        setIsLoading(false);
+        return;
+      }
+
+      if (data) {
+        const mappedTodos: Todo[] = data.map((todo: SupabaseTodo) => ({
+          id: todo.id,
+          text: todo.text,
+          completed: todo.completed,
+        }));
+        setTodos(mappedTodos);
+      }
+      setIsLoading(false);
+    };
+
+    fetchTodos();
+  }, []);
 
   const handleAddTodo = () => {
     if (inputValue.trim() === "") return;
@@ -34,7 +65,7 @@ export function TodoList() {
     }
 
     const newTodo: Todo = {
-      id: Date.now(),
+      id: crypto.randomUUID(),
       text: inputValue.trim(),
       completed: false,
     };
@@ -44,7 +75,7 @@ export function TodoList() {
     setError("");
   };
 
-  const handleToggleTodo = (id: number) => {
+  const handleToggleTodo = (id: string) => {
     setTodos(
       todos.map((todo) =>
         todo.id === id ? { ...todo, completed: !todo.completed } : todo
@@ -52,7 +83,7 @@ export function TodoList() {
     );
   };
 
-  const handleDeleteTodo = (id: number) => {
+  const handleDeleteTodo = (id: string) => {
     setTodos(todos.filter((todo) => todo.id !== id));
   };
 
@@ -127,7 +158,9 @@ export function TodoList() {
           </Button>
         </div>
 
-        {filteredTodos.length === 0 && todos.length === 0 ? (
+        {isLoading ? (
+          <p className="text-center text-gray-500 py-8">Loading...</p>
+        ) : filteredTodos.length === 0 && todos.length === 0 ? (
           <p className="text-center text-gray-500 py-8">
             No todos yet. Add one above!
           </p>

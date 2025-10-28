@@ -1,6 +1,15 @@
-import { TodoList } from "@/components/TodoList";
+import { TodoListServer } from "@/components/TodoListServer";
+import { filterSchema } from "@/lib/schemas";
 
-export default function Home() {
+export default async function Home({
+  searchParams,
+}: {
+  searchParams: Promise<{ filter?: string }>;
+}) {
+  const params = await searchParams;
+  const parsed = filterSchema.safeParse(params?.filter ?? "all");
+  const initialFilter = parsed.success ? parsed.data : "all";
+
   return (
     <div className="flex min-h-screen items-center justify-center bg-linear-to-br from-blue-50 to-indigo-100 dark:from-gray-900 dark:to-gray-800 p-4">
       <main className="w-full">
@@ -9,10 +18,10 @@ export default function Home() {
             My Todo App
           </h1>
           <p className="text-gray-600 dark:text-gray-300">
-            Built with TDD, Next.js, and shadcn/ui
+            Built with TDD, Next.js, Server Actions, and shadcn/ui
           </p>
         </div>
-        <TodoList />
+        <TodoListServer initialFilter={initialFilter} />
       </main>
     </div>
   );
