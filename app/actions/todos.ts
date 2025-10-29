@@ -15,9 +15,20 @@ export type ActionResult<T = void> = {
   data?: T;
 };
 
-// Получить все todos
+// Получить все todos для текущего пользователя
 export async function getTodos(): Promise<ActionResult<Todo[]>> {
   try {
+    // Получить текущего пользователя
+    const { data: { user }, error: authError } = await supabase.auth.getUser();
+    
+    if (authError || !user) {
+      return {
+        success: false,
+        error: "Unauthorized. Please sign in.",
+      };
+    }
+
+    // RLS автоматически фильтрует по user_id
     const { data, error } = await supabase
       .from("todos")
       .select("*")
@@ -47,12 +58,22 @@ export async function createTodo(
   formData: FormData
 ): Promise<ActionResult<Todo>> {
   try {
+    // Получить текущего пользователя
+    const { data: { user }, error: authError } = await supabase.auth.getUser();
+    
+    if (authError || !user) {
+      return {
+        success: false,
+        error: "Unauthorized. Please sign in.",
+      };
+    }
+
     const text = formData.get("text") as string;
 
     // Валидация с Zod
     const validatedData = createTodoSchema.parse({ text });
 
-    // Проверка на дубликаты
+    // Проверка на дубликаты у текущего пользователя
     const { data: existingTodos } = await supabase
       .from("todos")
       .select("text")
@@ -65,12 +86,13 @@ export async function createTodo(
       };
     }
 
-    // Создание todo
+    // Создание todo с user_id
     const { data, error } = await supabase
       .from("todos")
       .insert({
         text: validatedData.text,
         completed: false,
+        user_id: user.id,
       })
       .select()
       .single();
@@ -107,6 +129,16 @@ export async function updateTodo(
   formData: FormData
 ): Promise<ActionResult<Todo>> {
   try {
+    // Получить текущего пользователя
+    const { data: { user }, error: authError } = await supabase.auth.getUser();
+    
+    if (authError || !user) {
+      return {
+        success: false,
+        error: "Unauthorized. Please sign in.",
+      };
+    }
+
     const id = formData.get("id") as string;
     const text = formData.get("text") as string | null;
     const completed = formData.get("completed") as string | null;
@@ -182,6 +214,16 @@ export async function deleteTodo(
   formData: FormData
 ): Promise<ActionResult<void>> {
   try {
+    // Получить текущего пользователя
+    const { data: { user }, error: authError } = await supabase.auth.getUser();
+    
+    if (authError || !user) {
+      return {
+        success: false,
+        error: "Unauthorized. Please sign in.",
+      };
+    }
+
     const id = formData.get("id") as string;
 
     // Валидация с Zod

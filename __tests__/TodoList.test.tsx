@@ -39,6 +39,7 @@ describe("Todo List (client composition)", () => {
   });
 
   test("filters: active and completed", async () => {
+    const mockUserId = "user-123-uuid";
     render(
       <TodoListClient
         initialTodos={[
@@ -46,6 +47,7 @@ describe("Todo List (client composition)", () => {
             id: "11111111-1111-1111-1111-111111111111",
             text: "Buy milk",
             completed: true,
+            user_id: mockUserId,
             created_at: "2025-10-28T10:00:00Z",
             updated_at: "2025-10-28T10:00:00Z",
           },
@@ -53,6 +55,7 @@ describe("Todo List (client composition)", () => {
             id: "22222222-2222-2222-2222-222222222222",
             text: "Write tests",
             completed: false,
+            user_id: mockUserId,
             created_at: "2025-10-28T10:00:00Z",
             updated_at: "2025-10-28T10:00:00Z",
           },
@@ -78,6 +81,7 @@ describe("Todo List (client composition)", () => {
   });
 
   test("filters: aria-current on active button", async () => {
+    const mockUserId = "user-123-uuid";
     render(
       <TodoListClient
         initialTodos={[
@@ -85,6 +89,7 @@ describe("Todo List (client composition)", () => {
             id: "11111111-1111-1111-1111-111111111111",
             text: "Buy milk",
             completed: false,
+            user_id: mockUserId,
             created_at: "2025-10-28T10:00:00Z",
             updated_at: "2025-10-28T10:00:00Z",
           },
@@ -102,6 +107,7 @@ describe("Todo List (client composition)", () => {
   });
 
   test("updates URL when filter changes", async () => {
+    const mockUserId = "user-123-uuid";
     const replace = jest.fn();
     (useRouter as jest.Mock).mockReturnValue({ replace });
     (usePathname as jest.Mock).mockReturnValue("/");
@@ -114,6 +120,7 @@ describe("Todo List (client composition)", () => {
             id: "11111111-1111-1111-1111-111111111111",
             text: "Buy milk",
             completed: false,
+            user_id: mockUserId,
             created_at: "2025-10-28T10:00:00Z",
             updated_at: "2025-10-28T10:00:00Z",
           },

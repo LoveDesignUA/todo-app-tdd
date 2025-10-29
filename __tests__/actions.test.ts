@@ -10,6 +10,9 @@ import { supabase } from "../lib/supabase";
 jest.mock("../lib/supabase", () => ({
   supabase: {
     from: jest.fn(),
+    auth: {
+      getUser: jest.fn(),
+    },
   },
 }));
 
@@ -20,9 +23,21 @@ jest.mock("next/cache", () => ({
 
 describe("Server Actions for Todos", () => {
   const mockSupabase = supabase as jest.Mocked<typeof supabase>;
+  const mockUserId = "user-123-uuid";
 
   beforeEach(() => {
     jest.clearAllMocks();
+
+    // Mock authenticated user by default
+    (mockSupabase.auth.getUser as jest.Mock).mockResolvedValue({
+      data: {
+        user: {
+          id: mockUserId,
+          email: "test@example.com",
+        },
+      },
+      error: null,
+    });
   });
 
   describe("getTodos", () => {
@@ -32,6 +47,7 @@ describe("Server Actions for Todos", () => {
           id: "1",
           text: "Buy milk",
           completed: false,
+          user_id: mockUserId,
           created_at: "2025-10-28T10:00:00Z",
           updated_at: "2025-10-28T10:00:00Z",
         },
@@ -79,6 +95,7 @@ describe("Server Actions for Todos", () => {
         id: "1",
         text: "Buy milk",
         completed: false,
+        user_id: mockUserId,
         created_at: "2025-10-28T10:00:00Z",
         updated_at: "2025-10-28T10:00:00Z",
       };
@@ -152,6 +169,7 @@ describe("Server Actions for Todos", () => {
         id: "550e8400-e29b-41d4-a716-446655440000",
         text: "Buy bread",
         completed: false,
+        user_id: mockUserId,
         created_at: "2025-10-28T10:00:00Z",
         updated_at: "2025-10-28T10:00:00Z",
       };
@@ -197,6 +215,7 @@ describe("Server Actions for Todos", () => {
         id: "550e8400-e29b-41d4-a716-446655440000",
         text: "Buy milk",
         completed: true,
+        user_id: mockUserId,
         created_at: "2025-10-28T10:00:00Z",
         updated_at: "2025-10-28T10:00:00Z",
       };
