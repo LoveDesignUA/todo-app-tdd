@@ -10,16 +10,16 @@ export default function LoginPage() {
   const [error, setError] = useState("");
   const [isPending, startTransition] = useTransition();
 
-  const handleOAuthSignIn = async (provider: "google" | "github") => {
-    startTransition(async () => {
-      const result = await signInWithOAuth(provider);
-      if (result.success && result.data?.url) {
-        window.location.href = result.data.url;
-      } else if (result.error) {
-        setError(result.error);
-      }
-    });
-  };
+  // const handleOAuthSignIn = async (provider: "google" | "github") => {
+  //   startTransition(async () => {
+  //     const result = await signInWithOAuth(provider);
+  //     if (result.success && result.data?.url) {
+  //       window.location.href = result.data.url;
+  //     } else if (result.error) {
+  //       setError(result.error);
+  //     }
+  //   });
+  // };
 
   const handleSubmit = async (e: React.FormEvent<HTMLFormElement>) => {
     e.preventDefault();
@@ -69,7 +69,8 @@ export default function LoginPage() {
         </CardHeader>
         <CardContent>
           <form onSubmit={handleSubmit} className="space-y-4" noValidate>
-            <div className="grid gap-2">
+            {/* OAuth Buttons */}
+            {/* <div className="grid gap-2">
               <Button
                 type="button"
                 variant="outline"
@@ -86,9 +87,9 @@ export default function LoginPage() {
               >
                 Continue with GitHub
               </Button>
-            </div>
+            </div> */}
 
-            <div className="h-px bg-border my-2" />
+            {/* <div className="h-px bg-border my-2" /> */}
 
             <div>
               <label htmlFor="email" className="block text-sm font-medium mb-2">

@@ -11,9 +11,25 @@ import type { Todo } from "@/lib/schemas";
 type TodoItemProps = {
   todo: Todo;
   allTodos: string[];
+  // Optimistic UI hooks (optional to keep tests working)
+  onOptimisticToggle?: (id: string) => void;
+  onRollbackToggle?: (id: string) => void;
+  onOptimisticDelete?: (todo: Todo) => void;
+  onRollbackDelete?: (todo: Todo) => void;
+  onOptimisticEdit?: (id: string, nextText: string, prevText: string) => void;
+  onRollbackEdit?: (id: string, prevText: string) => void;
 };
 
-export function TodoItem({ todo, allTodos }: TodoItemProps) {
+export function TodoItem({
+  todo,
+  allTodos,
+  onOptimisticToggle,
+  onRollbackToggle,
+  onOptimisticDelete,
+  onRollbackDelete,
+  onOptimisticEdit,
+  onRollbackEdit,
+}: TodoItemProps) {
   const [isEditing, setIsEditing] = useState(false);
   const [editValue, setEditValue] = useState(todo.text);
   const [editError, setEditError] = useState("");
@@ -26,7 +42,13 @@ export function TodoItem({ todo, allTodos }: TodoItemProps) {
       formData.append("id", todo.id);
       formData.append("completed", (!todo.completed).toString());
 
-      await updateTodo(formData);
+      // optimistic update first
+      onOptimisticToggle?.(todo.id);
+      const result = await updateTodo(formData);
+      if (!result?.success) {
+        // rollback if failed
+        onRollbackToggle?.(todo.id);
+      }
     });
   };
 
@@ -34,8 +56,13 @@ export function TodoItem({ todo, allTodos }: TodoItemProps) {
     startTransition(async () => {
       const formData = new FormData();
       formData.append("id", todo.id);
-
-      await deleteTodo(formData);
+      // optimistic remove
+      onOptimisticDelete?.(todo);
+      const result = await deleteTodo(formData);
+      if (!result?.success) {
+        // rollback add-back
+        onRollbackDelete?.(todo);
+      }
     });
   };
 
@@ -65,6 +92,9 @@ export function TodoItem({ todo, allTodos }: TodoItemProps) {
       formData.append("id", todo.id);
       formData.append("text", trimmed);
 
+      const prevText = todo.text;
+      // optimistic text update
+      onOptimisticEdit?.(todo.id, trimmed, prevText);
       const result = await updateTodo(formData);
 
       if (result.success) {
@@ -72,6 +102,8 @@ export function TodoItem({ todo, allTodos }: TodoItemProps) {
         setEditError("");
         setTimeout(() => editButtonRef.current?.focus(), 0);
       } else {
+        // rollback text
+        onRollbackEdit?.(todo.id, prevText);
         setEditError(result.error || "Failed to update todo");
       }
     });

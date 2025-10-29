@@ -1,6 +1,6 @@
 "use client";
 
-import { useMemo, useState } from "react";
+import { useMemo, useOptimistic, useState } from "react";
 import { usePathname, useRouter, useSearchParams } from "next/navigation";
 import { TodoItem } from "./TodoItemWithActions";
 import { TodoFilters } from "./TodoFilters";
@@ -11,12 +11,38 @@ type TodoListClientProps = {
   initialFilter?: Filter;
 };
 
+type OptimisticAction =
+  | { type: "toggle"; id: string }
+  | { type: "delete"; todo: Todo }
+  | { type: "edit"; id: string; text: string }
+  | { type: "add-back"; todo: Todo };
+
 export function TodoListClient({ initialTodos, initialFilter = "all" }: TodoListClientProps) {
   const router = useRouter();
   const pathname = usePathname();
   const searchParams = useSearchParams();
 
   const [filter, setFilter] = useState<Filter>(initialFilter);
+  const [optimisticTodos, dispatchOptimistic] = useOptimistic<Todo[], OptimisticAction>(
+    initialTodos,
+    (state, action) => {
+      switch (action.type) {
+        case "toggle":
+          return state.map((t) =>
+            t.id === action.id ? { ...t, completed: !t.completed } : t
+          );
+        case "delete":
+          return state.filter((t) => t.id !== action.todo.id);
+        case "edit":
+          return state.map((t) => (t.id === action.id ? { ...t, text: action.text } : t));
+        case "add-back":
+          // re-add at the top for visibility
+          return [action.todo, ...state];
+        default:
+          return state;
+      }
+    }
+  );
 
   // Обновляем URL при смене фильтра
   const handleFilterChange = (next: Filter) => {
@@ -34,18 +60,30 @@ export function TodoListClient({ initialTodos, initialFilter = "all" }: TodoList
   };
 
   const filteredTodos = useMemo(() => {
-    return initialTodos.filter((todo) => {
+    return optimisticTodos.filter((todo) => {
       if (filter === "active") return !todo.completed;
       if (filter === "completed") return todo.completed;
       return true; // all
     });
-  }, [initialTodos, filter]);
+  }, [optimisticTodos, filter]);
+
+  // Optimistic handlers invoked from child
+  const onOptimisticToggle = (id: string) => dispatchOptimistic({ type: "toggle", id });
+  const onRollbackToggle = (id: string) => dispatchOptimistic({ type: "toggle", id });
+
+  const onOptimisticDelete = (todo: Todo) => dispatchOptimistic({ type: "delete", todo });
+  const onRollbackDelete = (todo: Todo) => dispatchOptimistic({ type: "add-back", todo });
+
+  const onOptimisticEdit = (id: string, text: string) =>
+    dispatchOptimistic({ type: "edit", id, text });
+  const onRollbackEdit = (id: string, prevText: string) =>
+    dispatchOptimistic({ type: "edit", id, text: prevText });
 
   return (
     <div>
       <TodoFilters currentFilter={filter} onFilterChange={handleFilterChange} />
 
-      {filteredTodos.length === 0 && initialTodos.length === 0 ? (
+      {filteredTodos.length === 0 && optimisticTodos.length === 0 ? (
         <p className="text-center text-gray-500 py-8">
           No todos yet. Add one above!
         </p>
@@ -59,7 +97,13 @@ export function TodoListClient({ initialTodos, initialFilter = "all" }: TodoList
             <TodoItem
               key={todo.id}
               todo={todo}
-              allTodos={initialTodos.map((t) => t.text)}
+              allTodos={optimisticTodos.map((t) => t.text)}
+              onOptimisticToggle={onOptimisticToggle}
+              onRollbackToggle={onRollbackToggle}
+              onOptimisticDelete={onOptimisticDelete}
+              onRollbackDelete={onRollbackDelete}
+              onOptimisticEdit={onOptimisticEdit}
+              onRollbackEdit={onRollbackEdit}
             />
           ))}
         </div>
