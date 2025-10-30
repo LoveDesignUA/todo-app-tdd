@@ -6,6 +6,7 @@ import { Input } from "@/components/ui/input";
 import { Trash2, Edit, Save, X } from "lucide-react";
 import { useState, useRef, useTransition } from "react";
 import { updateTodo, deleteTodo } from "@/app/actions/todos";
+import { toast } from "sonner";
 import type { Todo } from "@/lib/schemas";
 
 type TodoItemProps = {
@@ -48,6 +49,7 @@ export function TodoItem({
       if (!result?.success) {
         // rollback if failed
         onRollbackToggle?.(todo.id);
+        toast.error(result?.error || "Failed to update todo status");
       }
     });
   };
@@ -62,6 +64,7 @@ export function TodoItem({
       if (!result?.success) {
         // rollback add-back
         onRollbackDelete?.(todo);
+        toast.error(result?.error || "Failed to delete todo");
       }
     });
   };
@@ -105,6 +108,7 @@ export function TodoItem({
         // rollback text
         onRollbackEdit?.(todo.id, prevText);
         setEditError(result.error || "Failed to update todo");
+        toast.error(result.error || "Failed to update todo");
       }
     });
   };

@@ -1,6 +1,5 @@
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { getTodos } from "@/app/actions/todos";
-import { AddTodoForm } from "./AddTodoForm";
 import { TodoListClient } from "./TodoListClient";
 import type { Filter } from "@/lib/schemas";
 
@@ -39,7 +38,6 @@ export async function TodoListServer(
         <CardTitle>Todo List</CardTitle>
       </CardHeader>
       <CardContent>
-        <AddTodoForm allTodos={todos.map((t) => t.text)} />
         <TodoListClient initialTodos={todos} initialFilter={initialFilter} />
       </CardContent>
     </Card>

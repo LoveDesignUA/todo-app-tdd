@@ -7,9 +7,15 @@ import { createTodo } from "@/app/actions/todos";
 
 type AddTodoFormProps = {
   allTodos: string[];
+  onOptimisticCreate?: (
+    text: string
+  ) => Promise<{ success: boolean; error?: string }>;
 };
 
-export function AddTodoForm({ allTodos }: AddTodoFormProps) {
+export function AddTodoForm({
+  allTodos,
+  onOptimisticCreate,
+}: AddTodoFormProps) {
   const [error, setError] = useState("");
   const [isPending, startTransition] = useTransition();
   const formRef = useRef<HTMLFormElement>(null);
@@ -36,13 +42,21 @@ export function AddTodoForm({ allTodos }: AddTodoFormProps) {
     setError("");
 
     startTransition(async () => {
-      const result = await createTodo(formData);
-
-      if (!result.success) {
-        setError(result.error || "Failed to create todo");
+      if (onOptimisticCreate) {
+        const res = await onOptimisticCreate(text.trim());
+        if (!res.success) {
+          setError(res.error || "Failed to create todo");
+        } else {
+          formRef.current?.reset();
+        }
       } else {
-        // Очищаем форму через React ref
-        formRef.current?.reset();
+        const result = await createTodo(formData);
+        if (!result.success) {
+          setError(result.error || "Failed to create todo");
+        } else {
+          // Очищаем форму через React ref
+          formRef.current?.reset();
+        }
       }
     });
   };

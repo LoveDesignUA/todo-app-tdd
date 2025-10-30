@@ -5,6 +5,9 @@ import { usePathname, useRouter, useSearchParams } from "next/navigation";
 import { TodoItem } from "./TodoItemWithActions";
 import { TodoFilters } from "./TodoFilters";
 import type { Todo, Filter } from "@/lib/schemas";
+import { AddTodoForm } from "./AddTodoForm";
+import { createTodo } from "@/app/actions/todos";
+import { toast } from "sonner";
 
 type TodoListClientProps = {
   initialTodos: Todo[];
@@ -15,7 +18,10 @@ type OptimisticAction =
   | { type: "toggle"; id: string }
   | { type: "delete"; todo: Todo }
   | { type: "edit"; id: string; text: string }
-  | { type: "add-back"; todo: Todo };
+  | { type: "add-back"; todo: Todo }
+  | { type: "add"; todo: Todo }
+  | { type: "replace"; id: string; next: Todo }
+  | { type: "remove"; id: string };
 
 export function TodoListClient({ initialTodos, initialFilter = "all" }: TodoListClientProps) {
   const router = useRouter();
@@ -27,6 +33,12 @@ export function TodoListClient({ initialTodos, initialFilter = "all" }: TodoList
     initialTodos,
     (state, action) => {
       switch (action.type) {
+        case "add":
+          return [action.todo, ...state];
+        case "replace":
+          return state.map((t) => (t.id === action.id ? action.next : t));
+        case "remove":
+          return state.filter((t) => t.id !== action.id);
         case "toggle":
           return state.map((t) =>
             t.id === action.id ? { ...t, completed: !t.completed } : t
@@ -79,8 +91,43 @@ export function TodoListClient({ initialTodos, initialFilter = "all" }: TodoList
   const onRollbackEdit = (id: string, prevText: string) =>
     dispatchOptimistic({ type: "edit", id, text: prevText });
 
+  // Optimistic create
+  const onOptimisticCreate = async (text: string) => {
+    const now = new Date().toISOString();
+    const tempId = typeof crypto !== "undefined" && "randomUUID" in crypto
+      ? crypto.randomUUID()
+      : Math.random().toString(36).slice(2);
+    const temp: Todo = {
+      id: `tmp-${tempId}`,
+      text,
+      completed: false,
+      user_id: "temp-user",
+      created_at: now,
+      updated_at: now,
+    };
+
+    dispatchOptimistic({ type: "add", todo: temp });
+
+    const fd = new FormData();
+    fd.append("text", text);
+    const result = await createTodo(fd);
+
+    if (result.success && result.data) {
+      dispatchOptimistic({ type: "replace", id: temp.id, next: result.data as Todo });
+      return { success: true as const };
+    } else {
+      dispatchOptimistic({ type: "remove", id: temp.id });
+      toast.error(result.error || "Failed to create todo");
+      return { success: false as const, error: result.error || "Failed to create todo" };
+    }
+  };
+
   return (
     <div>
+      <AddTodoForm
+        allTodos={optimisticTodos.map((t) => t.text)}
+        onOptimisticCreate={onOptimisticCreate}
+      />
       <TodoFilters currentFilter={filter} onFilterChange={handleFilterChange} />
 
       {filteredTodos.length === 0 && optimisticTodos.length === 0 ? (
