@@ -112,4 +112,12 @@ describe("Login Page", () => {
       /invalid credentials/i
     );
   });
+
+  test("has link to signup page", () => {
+    render(<LoginPage />);
+
+    const signupLink = screen.getByRole("link", { name: /sign up/i });
+    expect(signupLink).toBeInTheDocument();
+    expect(signupLink).toHaveAttribute("href", "/signup");
+  });
 });

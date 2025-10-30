@@ -50,9 +50,14 @@ export async function signIn(formData: FormData): Promise<ActionResult> {
 export async function signUp(formData: FormData): Promise<ActionResult> {
   const email = formData.get("email") as string;
   const password = formData.get("password") as string;
+  const confirmPassword = formData.get("confirmPassword") as string;
 
   // Validate input
-  const validation = signUpSchema.safeParse({ email, password });
+  const validation = signUpSchema.safeParse({
+    email,
+    password,
+    confirmPassword,
+  });
 
   if (!validation.success) {
     const firstError = validation.error.issues[0];

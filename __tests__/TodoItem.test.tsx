@@ -68,6 +68,10 @@ describe("TodoItemWithActions (client)", () => {
     await userEvent.click(deleteButton);
 
     expect(deleteTodo).toHaveBeenCalledTimes(1);
+    // Проверяем что передан FormData с правильным ID
+    const callArg = (deleteTodo as jest.Mock).mock.calls[0][0];
+    expect(callArg).toBeInstanceOf(FormData);
+    expect(callArg.get("id")).toBe("550e8400-e29b-41d4-a716-446655440000");
   });
 
   test("calls update server action when checkbox is clicked", async () => {
