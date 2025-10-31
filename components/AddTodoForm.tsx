@@ -17,7 +17,7 @@ export function AddTodoForm({
   onOptimisticCreate,
 }: AddTodoFormProps) {
   const [error, setError] = useState("");
-  const [isPending, startTransition] = useTransition();
+  const [, startTransition] = useTransition();
   const formRef = useRef<HTMLFormElement>(null);
 
   const handleSubmit = async (formData: FormData) => {
@@ -41,21 +41,36 @@ export function AddTodoForm({
 
     setError("");
 
+    // Мгновенная очистка формы для лучшего UX
+    const trimmedText = text.trim();
+    formRef.current?.reset();
+
     startTransition(async () => {
       if (onOptimisticCreate) {
-        const res = await onOptimisticCreate(text.trim());
+        const res = await onOptimisticCreate(trimmedText);
         if (!res.success) {
           setError(res.error || "Failed to create todo");
-        } else {
-          formRef.current?.reset();
+          // Возвращаем текст обратно в форму при ошибке
+          if (formRef.current) {
+            const input = formRef.current.elements.namedItem(
+              "text"
+            ) as HTMLInputElement;
+            if (input) input.value = trimmedText;
+          }
         }
       } else {
-        const result = await createTodo(formData);
+        const fd = new FormData();
+        fd.append("text", trimmedText);
+        const result = await createTodo(fd);
         if (!result.success) {
           setError(result.error || "Failed to create todo");
-        } else {
-          // Очищаем форму через React ref
-          formRef.current?.reset();
+          // Возвращаем текст обратно в форму при ошибке
+          if (formRef.current) {
+            const input = formRef.current.elements.namedItem(
+              "text"
+            ) as HTMLInputElement;
+            if (input) input.value = trimmedText;
+          }
         }
       }
     });
@@ -70,11 +85,8 @@ export function AddTodoForm({
           placeholder="Add a new todo..."
           className="flex-1"
           onChange={() => setError("")}
-          disabled={isPending}
         />
-        <Button type="submit" disabled={isPending}>
-          {isPending ? "Adding..." : "Add"}
-        </Button>
+        <Button type="submit">Add</Button>
       </form>
 
       {error && (

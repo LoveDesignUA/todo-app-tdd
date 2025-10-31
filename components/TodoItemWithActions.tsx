@@ -4,7 +4,7 @@ import { Button } from "@/components/ui/button";
 import { Checkbox } from "@/components/ui/checkbox";
 import { Input } from "@/components/ui/input";
 import { Trash2, Edit, Save, X } from "lucide-react";
-import { useState, useRef, useTransition } from "react";
+import { useState, useRef, useTransition, useOptimistic } from "react";
 import { updateTodo, deleteTodo } from "@/app/actions/todos";
 import { toast } from "sonner";
 import type { Todo } from "@/lib/schemas";
@@ -36,18 +36,41 @@ export function TodoItem({
   const [editError, setEditError] = useState("");
   const editButtonRef = useRef<HTMLButtonElement>(null);
   const [isPending, startTransition] = useTransition();
+  
+  // Локальный оптимистичный стейт для чекбокса
+  const [optimisticCompleted, setOptimisticCompleted] = useOptimistic(
+    todo.completed,
+    (state, newValue: boolean) => newValue
+  );
+  
+  // Локальный оптимистичный стейт для текста задачи
+  const [optimisticText, setOptimisticText] = useOptimistic(
+    todo.text,
+    (state, newValue: string) => newValue
+  );
+  
+  // Локальный оптимистичный стейт для видимости (удаление)
+  const [optimisticVisible, setOptimisticVisible] = useOptimistic(
+    true,
+    (state, newValue: boolean) => newValue
+  );
 
   const handleToggle = () => {
+    const newValue = !optimisticCompleted;
+    
     startTransition(async () => {
+      // Мгновенное обновление локального UI
+      setOptimisticCompleted(newValue);
+      
       const formData = new FormData();
       formData.append("id", todo.id);
-      formData.append("completed", (!todo.completed).toString());
+      formData.append("completed", newValue.toString());
 
-      // optimistic update first
+      // optimistic update для родительского компонента
       onOptimisticToggle?.(todo.id);
       const result = await updateTodo(formData);
       if (!result?.success) {
-        // rollback if failed
+        // rollback если ошибка
         onRollbackToggle?.(todo.id);
         toast.error(result?.error || "Failed to update todo status");
       }
@@ -56,13 +79,17 @@ export function TodoItem({
 
   const handleDelete = () => {
     startTransition(async () => {
+      // Мгновенное скрытие элемента
+      setOptimisticVisible(false);
+      
       const formData = new FormData();
       formData.append("id", todo.id);
       // optimistic remove
       onOptimisticDelete?.(todo);
       const result = await deleteTodo(formData);
       if (!result?.success) {
-        // rollback add-back
+        // rollback - показываем элемент обратно
+        setOptimisticVisible(true);
         onRollbackDelete?.(todo);
         toast.error(result?.error || "Failed to delete todo");
       }
@@ -90,22 +117,28 @@ export function TodoItem({
       return;
     }
 
+    // Мгновенное закрытие режима редактирования (это обычный стейт, не оптимистичный)
+    setIsEditing(false);
+    setEditError("");
+    setTimeout(() => editButtonRef.current?.focus(), 0);
+
     startTransition(async () => {
+      // Оптимистичное обновление ВНУТРИ transition
+      setOptimisticText(trimmed);
+      
       const formData = new FormData();
       formData.append("id", todo.id);
       formData.append("text", trimmed);
 
       const prevText = todo.text;
-      // optimistic text update
+      // optimistic text update для родительского компонента
       onOptimisticEdit?.(todo.id, trimmed, prevText);
       const result = await updateTodo(formData);
 
-      if (result.success) {
-        setIsEditing(false);
-        setEditError("");
-        setTimeout(() => editButtonRef.current?.focus(), 0);
-      } else {
-        // rollback text
+      if (!result.success) {
+        // rollback - возвращаем режим редактирования и старый текст
+        setIsEditing(true);
+        setEditValue(prevText);
         onRollbackEdit?.(todo.id, prevText);
         setEditError(result.error || "Failed to update todo");
         toast.error(result.error || "Failed to update todo");
@@ -166,20 +199,24 @@ export function TodoItem({
     );
   }
 
+  // Скрываем элемент если он оптимистично удален
+  if (!optimisticVisible) {
+    return null;
+  }
+
   return (
     <div className="flex items-center gap-3 p-3 bg-white rounded-lg shadow-sm hover:shadow-md transition-shadow">
       <Checkbox
-        checked={todo.completed}
+        checked={optimisticCompleted}
         onCheckedChange={handleToggle}
         aria-label="Toggle todo completion"
-        disabled={isPending}
       />
       <span
         className={
-          todo.completed ? "line-through text-gray-400" : "text-gray-800"
+          optimisticCompleted ? "line-through text-gray-400" : "text-gray-800"
         }
       >
-        {todo.text}
+        {optimisticText}
       </span>
       <div className="ml-auto flex gap-1">
         <Button
@@ -189,7 +226,6 @@ export function TodoItem({
           onClick={() => setIsEditing(true)}
           aria-label="Edit"
           className="text-blue-500 hover:text-blue-700 hover:bg-blue-50"
-          disabled={isPending}
         >
           <Edit className="h-4 w-4" />
         </Button>
@@ -199,7 +235,6 @@ export function TodoItem({
           onClick={handleDelete}
           aria-label="Delete"
           className="text-red-500 hover:text-red-700 hover:bg-red-50"
-          disabled={isPending}
         >
           <Trash2 className="h-4 w-4" />
         </Button>
