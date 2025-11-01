@@ -43,3 +43,9 @@ next-env.d.ts
 # playwright
 /playwright-report
 /test-results
+
+# copilot instructions (internal only)
+.github/
+
+#learning plans
+learning-plan-ts.md
