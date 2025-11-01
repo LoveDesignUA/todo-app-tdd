@@ -16,7 +16,6 @@ type TodoItemProps = {
   onOptimisticToggle?: (id: string) => void;
   onRollbackToggle?: (id: string) => void;
   onOptimisticDelete?: (todo: Todo) => void;
-  onRollbackDelete?: (todo: Todo) => void;
   onOptimisticEdit?: (id: string, nextText: string, prevText: string) => void;
   onRollbackEdit?: (id: string, prevText: string) => void;
 };
@@ -27,7 +26,6 @@ export function TodoItem({
   onOptimisticToggle,
   onRollbackToggle,
   onOptimisticDelete,
-  onRollbackDelete,
   onOptimisticEdit,
   onRollbackEdit,
 }: TodoItemProps) {
@@ -49,11 +47,8 @@ export function TodoItem({
     (state, newValue: string) => newValue
   );
   
-  // Локальный оптимистичный стейт для видимости (удаление)
-  const [optimisticVisible, setOptimisticVisible] = useOptimistic(
-    true,
-    (state, newValue: boolean) => newValue
-  );
+  // Локальный флаг для мгновенного скрытия при удалении (не зависит от optimistic updates)
+  const [isHidden, setIsHidden] = useState(false);
 
   const handleToggle = () => {
     const newValue = !optimisticCompleted;
@@ -78,21 +73,42 @@ export function TodoItem({
   };
 
   const handleDelete = () => {
-    startTransition(async () => {
-      // Мгновенное скрытие элемента
-      setOptimisticVisible(false);
-      
-      const formData = new FormData();
-      formData.append("id", todo.id);
-      // optimistic remove
-      onOptimisticDelete?.(todo);
-      const result = await deleteTodo(formData);
-      if (!result?.success) {
-        // rollback - показываем элемент обратно
-        setOptimisticVisible(true);
-        onRollbackDelete?.(todo);
-        toast.error(result?.error || "Failed to delete todo");
-      }
+    let isUndone = false;
+
+    // Мгновенно скрываем элемент из UI
+    setIsHidden(true);
+
+    // Показываем toast с кнопкой Undo и прогресс-баром (7 секунд)
+    toast.success("Task deleted", {
+      duration: 7000,
+      action: {
+        label: "Undo",
+        onClick: () => {
+          // Отменяем удаление — сразу показываем задачу обратно
+          isUndone = true;
+          setIsHidden(false);
+        },
+      },
+      onAutoClose: () => {
+        // Вызывается ровно через 7 секунд когда toast закрывается
+        if (!isUndone) {
+          // Только теперь удаляем из БД и из optimistic state
+          startTransition(async () => {
+            const formData = new FormData();
+            formData.append("id", todo.id);
+            const result = await deleteTodo(formData);
+
+            if (result?.success) {
+              // Успешное удаление — убираем из родительского списка
+              onOptimisticDelete?.(todo);
+            } else {
+              // Ошибка — возвращаем элемент в UI
+              setIsHidden(false);
+              toast.error(result?.error || "Failed to delete todo");
+            }
+          });
+        }
+      },
     });
   };
 
@@ -199,8 +215,8 @@ export function TodoItem({
     );
   }
 
-  // Скрываем элемент если он оптимистично удален
-  if (!optimisticVisible) {
+  // Скрываем элемент если он удален (ожидает 7 секунд или уже удален из БД)
+  if (isHidden) {
     return null;
   }
 
