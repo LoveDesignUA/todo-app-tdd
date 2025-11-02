@@ -15,18 +15,25 @@ export type ActionResult<T = void> = {
   data?: T;
 };
 
+// Получить текущего пользователя или бросить ошибку, чтобы единообразно обрабатывать авторизацию
+async function requireUser() {
+  const {
+    data: { user },
+    error: authError,
+  } = await supabase.auth.getUser();
+
+  if (authError || !user) {
+    throw new Error("Unauthorized. Please sign in.");
+  }
+
+  return user;
+}
+
 // Получить все todos для текущего пользователя
 export async function getTodos(): Promise<ActionResult<Todo[]>> {
   try {
-    // Получить текущего пользователя
-    const { data: { user }, error: authError } = await supabase.auth.getUser();
-    
-    if (authError || !user) {
-      return {
-        success: false,
-        error: "Unauthorized. Please sign in.",
-      };
-    }
+    // Гарантируем что пользователь авторизован (RLS защитит выборку)
+    await requireUser();
 
     // RLS автоматически фильтрует по user_id
     const { data, error } = await supabase
@@ -59,14 +66,7 @@ export async function createTodo(
 ): Promise<ActionResult<Todo>> {
   try {
     // Получить текущего пользователя
-    const { data: { user }, error: authError } = await supabase.auth.getUser();
-    
-    if (authError || !user) {
-      return {
-        success: false,
-        error: "Unauthorized. Please sign in.",
-      };
-    }
+    const user = await requireUser();
 
     const text = formData.get("text") as string;
 
@@ -129,15 +129,8 @@ export async function updateTodo(
   formData: FormData
 ): Promise<ActionResult<Todo>> {
   try {
-    // Получить текущего пользователя
-    const { data: { user }, error: authError } = await supabase.auth.getUser();
-    
-    if (authError || !user) {
-      return {
-        success: false,
-        error: "Unauthorized. Please sign in.",
-      };
-    }
+    // Проверка авторизации
+    await requireUser();
 
     const id = formData.get("id") as string;
     const text = formData.get("text") as string | null;
@@ -214,15 +207,8 @@ export async function deleteTodo(
   formData: FormData
 ): Promise<ActionResult<void>> {
   try {
-    // Получить текущего пользователя
-    const { data: { user }, error: authError } = await supabase.auth.getUser();
-    
-    if (authError || !user) {
-      return {
-        success: false,
-        error: "Unauthorized. Please sign in.",
-      };
-    }
+    // Проверка авторизации
+    await requireUser();
 
     const id = formData.get("id") as string;
 

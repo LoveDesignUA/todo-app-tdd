@@ -227,7 +227,9 @@ describe("TodoItemWithActions (client)", () => {
 
       // Симулируем клик на undo кнопку
       expect(capturedUndoAction).not.toBeNull();
-      capturedUndoAction!();
+      await act(async () => {
+        capturedUndoAction!();
+      });
 
       // Элемент должен вернуться в DOM
       await waitFor(() => {

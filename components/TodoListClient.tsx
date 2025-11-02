@@ -187,7 +187,6 @@ export function TodoListClient({ initialTodos, initialFilter = "all" }: TodoList
               onOptimisticToggle={onOptimisticToggle}
               onRollbackToggle={onRollbackToggle}
               onOptimisticDelete={onOptimisticDelete}
-              onRollbackDelete={onRollbackDelete}
               onOptimisticEdit={onOptimisticEdit}
               onRollbackEdit={onRollbackEdit}
             />
