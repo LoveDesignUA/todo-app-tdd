@@ -6,14 +6,14 @@ A modern, production-ready Todo application built with **Next.js 16**, **TypeScr
 
 - ✅ **Full CRUD operations** for todos with real-time updates
 - ✅ **Optimistic UI updates** for instant feedback
-- ✅ **Undo delete functionality** with 7-second window and progress bar
+- ✅ **Undo delete functionality** with animated progress bar, icon button, and smart dismiss behavior
 - ✅ **Server Actions** for all mutations (Next.js App Router)
 - ✅ **Authentication** with Supabase (login/signup/logout)
 - ✅ **Row Level Security (RLS)** - users only see their own todos
 - ✅ **Filtering** by all/active/completed tasks
 - ✅ **Duplicate prevention** with case-insensitive validation
 - ✅ **Real-time toast notifications** with Sonner
-- ✅ **Fully tested** - tests with Jest & React Testing Library
+- ✅ **Fully tested** - 47 tests with Jest & React Testing Library
 - ✅ **100% TypeScript** with strict mode
 - ✅ **Modern UI** with Tailwind CSS and shadcn/ui components
 - ✅ **Accessibility (a11y)** - ARIA labels, keyboard navigation, semantic HTML
@@ -109,10 +109,11 @@ npm run test:coverage
 
 This project follows **Test-Driven Development (TDD)** principles:
 
-- **46 tests** across 6 test suites
+- **47 tests** across 6 test suites (all passing ✅)
 - **Component tests:** TodoItem, TodoList, Login, SignUp
 - **Integration tests:** Server actions with Supabase
-- **Mocking:** Supabase client, Server Actions, Next.js navigation
+- **Undo functionality tests:** Progress bar, auto-close, manual dismiss, and restore
+- **Mocking:** Supabase client, Server Actions, Next.js navigation, Sonner toast
 
 ### Test Coverage
 
@@ -123,7 +124,8 @@ npm run test:coverage
 Key test patterns:
 
 - Optimistic UI updates and rollback
-- Undo functionality with timing
+- Undo functionality with timing, progress bar animation, and manual dismiss
+- Toast notifications (show, dismiss, auto-close callbacks)
 - Form validation and error handling
 - Authentication flows
 
@@ -175,10 +177,14 @@ npm start
 When deleting a todo:
 
 1. Item disappears from UI immediately (optimistic)
-2. Toast appears with "Undo" button and 7-second progress bar
-3. Click "Undo" → item restored instantly
-4. Wait 7 seconds → permanent deletion from database
-5. On error → item restored with error toast
+2. Toast appears with "Undo" button and animated 7-second progress bar
+3. Three ways to handle the toast:
+   - **Click "Undo"** → item restored instantly, toast dismissed
+   - **Wait 7 seconds** → automatic deletion from database when progress bar completes
+   - **Swipe/dismiss toast manually** → immediate deletion from database (no need to wait)
+4. On error → item restored with error toast
+
+The progress bar animates smoothly from 0% to 100% over 7 seconds, giving clear visual feedback of remaining time.
 
 ### Optimistic Updates
 
