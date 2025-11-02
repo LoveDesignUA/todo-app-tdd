@@ -226,13 +226,3 @@ This app implements comprehensive accessibility features:
 ## 📝 License
 
 MIT
-
-## 🤝 Contributing
-
-Contributions, issues, and feature requests are welcome!
-
-## 📧 Contact
-
-Your Name - [@yourtwitter](https://twitter.com/yourtwitter)
-
-Project Link: [https://github.com/yourusername/todo-add-with-tests](https://github.com/yourusername/todo-add-with-tests)
