@@ -119,6 +119,24 @@ export function TodoItem({
     // Мгновенно скрываем элемент из UI
     setIsHidden(true);
 
+    // Общая функция коммита удаления (БД + оповещение родителя)
+    const commitDelete = () => {
+      startTransition(async () => {
+        const formData = new FormData();
+        formData.append("id", todo.id);
+        const result = await deleteTodo(formData);
+
+        if (result?.success) {
+          // Успешное удаление — убираем из родительского списка
+          onOptimisticDelete?.(todo);
+        } else {
+          // Ошибка — возвращаем элемент в UI
+          setIsHidden(false);
+          toast.error(result?.error || "Failed to delete todo");
+        }
+      });
+    };
+
     // Показываем toast с кнопкой Undo и прогресс-баром (7 секунд)
     const toastId = toast.success(
       <UndoToastContent 
@@ -130,24 +148,18 @@ export function TodoItem({
       />,
       {
         duration: 7000,
+        // Ровно через 7 секунд, если undo не нажали
         onAutoClose: () => {
           // Вызывается ровно через 7 секунд когда toast закрывается
           if (!isUndone) {
             // Только теперь удаляем из БД и из optimistic state
-            startTransition(async () => {
-              const formData = new FormData();
-              formData.append("id", todo.id);
-              const result = await deleteTodo(formData);
-
-              if (result?.success) {
-                // Успешное удаление — убираем из родительского списка
-                onOptimisticDelete?.(todo);
-              } else {
-                // Ошибка — возвращаем элемент в UI
-                setIsHidden(false);
-                toast.error(result?.error || "Failed to delete todo");
-              }
-            });
+            commitDelete();
+          }
+        },
+        // Если пользователь вручную закрыл toast (свайп/крестик) — считаем, что undo не нужен
+        onDismiss: () => {
+          if (!isUndone) {
+            commitDelete();
           }
         },
       }

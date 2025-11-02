@@ -334,8 +334,54 @@ describe("TodoItemWithActions (client)", () => {
       // Элемент скрыт сразу из UI
       expect(screen.queryByText("Buy milk")).not.toBeInTheDocument();
 
-      // Но onOptimisticDelete НЕ вызван до завершения 7 секунд
+      // Но onOptimisticDelete НЕ вызван до завершения 7 секунд или ручного закрытия
       expect(mockOnOptimisticDelete).not.toHaveBeenCalled();
+    });
+
+    test("commits delete immediately when toast is manually dismissed (swipe)", async () => {
+      const mockOnOptimisticDelete = jest.fn();
+      let capturedOnDismiss: (() => void) | null = null;
+
+      (toast.success as jest.Mock).mockImplementation((component, options) => {
+        if (options?.onDismiss) capturedOnDismiss = options.onDismiss;
+        return "mock-toast-id";
+      });
+
+      render(
+        <TodoItem
+          todo={{
+            id: "550e8400-e29b-41d4-a716-446655440000",
+            text: "Buy milk",
+            completed: false,
+            user_id: "user-123-uuid",
+            created_at: "2025-10-28T10:00:00Z",
+            updated_at: "2025-10-28T10:00:00Z",
+          }}
+          allTodos={["Buy milk"]}
+          onOptimisticDelete={mockOnOptimisticDelete}
+        />
+      );
+
+      const deleteButton = screen.getByRole("button", { name: /delete/i });
+      await userEvent.click(deleteButton);
+
+      // Симулируем свайп/ручное закрытие
+      expect(capturedOnDismiss).not.toBeNull();
+      await act(async () => {
+        capturedOnDismiss!();
+      });
+
+      // Удаление должно быть коммичено сразу
+      await waitFor(() => {
+        expect(deleteTodo).toHaveBeenCalled();
+      });
+      await waitFor(() => {
+        expect(mockOnOptimisticDelete).toHaveBeenCalledWith(
+          expect.objectContaining({
+            id: "550e8400-e29b-41d4-a716-446655440000",
+          })
+        );
+      });
     });
   });
 });
