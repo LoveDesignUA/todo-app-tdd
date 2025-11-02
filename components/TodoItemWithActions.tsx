@@ -3,11 +3,52 @@
 import { Button } from "@/components/ui/button";
 import { Checkbox } from "@/components/ui/checkbox";
 import { Input } from "@/components/ui/input";
-import { Trash2, Edit, Save, X } from "lucide-react";
-import { useState, useRef, useTransition, useOptimistic } from "react";
+import { Progress } from "@/components/ui/progress";
+import { Trash2, Edit, Save, X, RotateCcw } from "lucide-react";
+import { useState, useRef, useTransition, useOptimistic, useEffect } from "react";
 import { updateTodo, deleteTodo } from "@/app/actions/todos";
 import { toast } from "sonner";
 import type { Todo } from "@/lib/schemas";
+
+// Toast component with progress bar for undo functionality
+function UndoToastContent({ onUndo }: { onUndo: () => void }) {
+  const [progress, setProgress] = useState(0);
+
+  useEffect(() => {
+    const startTime = Date.now();
+    const duration = 7000; // 7 seconds
+
+    const interval = setInterval(() => {
+      const elapsed = Date.now() - startTime;
+      const newProgress = Math.min((elapsed / duration) * 100, 100);
+      setProgress(newProgress);
+
+      if (newProgress >= 100) {
+        clearInterval(interval);
+      }
+    }, 50); // Update every 50ms for smooth animation
+
+    return () => clearInterval(interval);
+  }, []);
+
+  return (
+    <div className="flex flex-col gap-2 w-full">
+      <div className="flex items-center justify-between">
+        <span className="text-sm font-medium">Task deleted</span>
+        <Button
+          size="sm"
+          variant="outline"
+          onClick={onUndo}
+          className="h-7 px-2 text-xs gap-1"
+        >
+          <RotateCcw className="h-3 w-3" />
+          Undo
+        </Button>
+      </div>
+      <Progress value={progress} className="h-1" />
+    </div>
+  );
+}
 
 type TodoItemProps = {
   todo: Todo;
@@ -79,37 +120,38 @@ export function TodoItem({
     setIsHidden(true);
 
     // Показываем toast с кнопкой Undo и прогресс-баром (7 секунд)
-    toast.success("Task deleted", {
-      duration: 7000,
-      action: {
-        label: "Undo",
-        onClick: () => {
-          // Отменяем удаление — сразу показываем задачу обратно
+    const toastId = toast.success(
+      <UndoToastContent 
+        onUndo={() => {
           isUndone = true;
           setIsHidden(false);
-        },
-      },
-      onAutoClose: () => {
-        // Вызывается ровно через 7 секунд когда toast закрывается
-        if (!isUndone) {
-          // Только теперь удаляем из БД и из optimistic state
-          startTransition(async () => {
-            const formData = new FormData();
-            formData.append("id", todo.id);
-            const result = await deleteTodo(formData);
+          toast.dismiss(toastId); // Закрываем toast при нажатии на Undo
+        }}
+      />,
+      {
+        duration: 7000,
+        onAutoClose: () => {
+          // Вызывается ровно через 7 секунд когда toast закрывается
+          if (!isUndone) {
+            // Только теперь удаляем из БД и из optimistic state
+            startTransition(async () => {
+              const formData = new FormData();
+              formData.append("id", todo.id);
+              const result = await deleteTodo(formData);
 
-            if (result?.success) {
-              // Успешное удаление — убираем из родительского списка
-              onOptimisticDelete?.(todo);
-            } else {
-              // Ошибка — возвращаем элемент в UI
-              setIsHidden(false);
-              toast.error(result?.error || "Failed to delete todo");
-            }
-          });
-        }
-      },
-    });
+              if (result?.success) {
+                // Успешное удаление — убираем из родительского списка
+                onOptimisticDelete?.(todo);
+              } else {
+                // Ошибка — возвращаем элемент в UI
+                setIsHidden(false);
+                toast.error(result?.error || "Failed to delete todo");
+              }
+            });
+          }
+        },
+      }
+    );
   };
 
   const handleSave = async () => {

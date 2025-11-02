@@ -17,6 +17,7 @@ jest.mock("sonner", () => ({
       // Возвращаем mock toast id для тестирования
       return "mock-toast-id";
     }),
+    dismiss: jest.fn(),
   },
 }));
 
@@ -82,7 +83,7 @@ describe("TodoItemWithActions (client)", () => {
     // С новой логикой undo, deleteTodo вызывается через 7 секунд
     // Проверяем что toast был вызван вместо немедленного удаления
     expect(toast.success).toHaveBeenCalledWith(
-      "Task deleted",
+      expect.anything(), // Now it's a React component
       expect.objectContaining({
         duration: 7000,
       })
@@ -176,12 +177,9 @@ describe("TodoItemWithActions (client)", () => {
 
       // Проверяем что toast.success был вызван с правильными параметрами
       expect(toast.success).toHaveBeenCalledWith(
-        "Task deleted",
+        expect.anything(), // Now it's a React component with progress bar
         expect.objectContaining({
           duration: 7000,
-          action: expect.objectContaining({
-            label: "Undo",
-          }),
         })
       );
 
@@ -196,10 +194,10 @@ describe("TodoItemWithActions (client)", () => {
       const mockOnOptimisticDelete = jest.fn();
       let capturedUndoAction: (() => void) | null = null;
 
-      // Перехватываем action.onClick из toast.success
-      (toast.success as jest.Mock).mockImplementation((message, options) => {
-        if (options?.action?.onClick) {
-          capturedUndoAction = options.action.onClick;
+      // Перехватываем onUndo из React компонента
+      (toast.success as jest.Mock).mockImplementation((component, options) => {
+        if (component?.props?.onUndo) {
+          capturedUndoAction = component.props.onUndo;
         }
         return "mock-toast-id";
       });
@@ -238,6 +236,9 @@ describe("TodoItemWithActions (client)", () => {
 
       // Проверяем что deleteTodo НЕ был вызван
       expect(deleteTodo).not.toHaveBeenCalled();
+
+      // Проверяем что toast.dismiss был вызван для закрытия toast
+      expect(toast.dismiss).toHaveBeenCalledWith("mock-toast-id");
     });
 
     test("calls deleteTodo after 7 seconds via onAutoClose", async () => {
@@ -245,7 +246,7 @@ describe("TodoItemWithActions (client)", () => {
       let capturedOnAutoClose: (() => void) | null = null;
 
       // Перехватываем onAutoClose из toast.success
-      (toast.success as jest.Mock).mockImplementation((message, options) => {
+      (toast.success as jest.Mock).mockImplementation((component, options) => {
         if (options?.onAutoClose) {
           capturedOnAutoClose = options.onAutoClose;
         }
@@ -278,7 +279,7 @@ describe("TodoItemWithActions (client)", () => {
 
       // Проверяем что toast был вызван с 7 секундным таймером
       expect(toast.success).toHaveBeenCalledWith(
-        "Task deleted",
+        expect.anything(), // Now it's a React component
         expect.objectContaining({
           duration: 7000,
         })
